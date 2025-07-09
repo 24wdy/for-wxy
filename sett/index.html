@@ -17,22 +17,27 @@
     
     .controls {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
       flex-wrap: wrap;
       justify-content: center;
+      padding: 1rem 2rem;
+      background-color: rgba(255,255,255,0.8);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
     
     button {
       background: linear-gradient(135deg, #3498db, #2980b9);
       color: white;
       border: none;
-      padding: 0.8rem 1.5rem;
+      padding: 0.9rem 1.8rem;
       border-radius: 50px;
       font-size: 1rem;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
     }
     
     button:hover {
@@ -120,7 +125,10 @@
   </style>
 </head>
 <body>
-  <h1 class="title">舒尔特方格注意力训练</h1>
+  <header class="main-header">
+    <h1 class="title">舒尔特方格注意力训练</h1>
+    <p class="subtitle">提升专注力与视觉感知能力</p>
+  </header>
   
   <div class="schulte-container">
     <div class="controls">
@@ -158,7 +166,7 @@
       // Supabase初始化
       const supabaseUrl = 'https://uqxhnjdckqyathfuvnsb.supabase.co';
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxeGhuamRja3F5YXRoZnV2bnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNjM1MTksImV4cCI6MjA2NzYzOTUxOX0.eIKLbQJK7UgwWR3dP_kzqMdaWR_ys7PtGIy83_0c628';
-      const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+      const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
       const grid = document.getElementById('grid');
       const startBtn = document.getElementById('start-btn');
       const resetBtn = document.getElementById('reset-btn');
@@ -342,7 +350,7 @@
       // 保存游戏结果到Supabase
       async function saveGameResult(timeTaken) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseClient
             .from('game_history')
             .insert([
               {

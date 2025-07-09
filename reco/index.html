@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>错误记录 | 小欣悦的个性化学习平台</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    .records-container {
+      width: 100%;
+      max-width: 800px;
+      margin: 2rem auto;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      padding: 2rem;
+    }
+    .action-buttons { display: flex; gap: 1rem; justify-content: center; margin: 2rem 0; }
+.btn { padding: 0.8rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 0.5rem; transition: transform 0.2s, box-shadow 0.2s; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.primary-btn { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+.secondary-btn { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+.stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 2rem auto; max-width: 1000px; padding: 0 1rem; }
+.stat-card { background-color: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center; }
+.score-value { font-size: 2.5rem; font-weight: bold; color: #e74c3c; margin: 0.5rem 0; }
+.batch-list { margin-top: 1rem; }
+.batch-item { background-color: #f8f9fa; padding: 0.8rem; border-radius: 6px; margin-bottom: 0.5rem; }
+.records-section { background-color: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 1.5rem; margin: 0 auto 2rem; max-width: 1000px; }
+.section-header { padding-bottom: 1rem; border-bottom: 1px solid #f0f0f0; margin-bottom: 1rem; }
+.record-item {
+      padding: 1.2rem;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background-color 0.2s ease;
+    }
+    .record-item:last-child {
+      border-bottom: none;
+    }
+    .record-item:hover {
+      background-color: #f9f9f9;
+    }
+    .record-item { padding: 1.2rem; border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s ease, transform 0.2s; }
+.record-item:hover { background-color: #f9f9f9; transform: translateX(5px); }
+.record-question {
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+    .record-date { color: #7f8c8d; font-size: 0.85rem; margin-bottom: 0.5rem; }
+.record-solution {
+      color: #3498db;
+      font-size: 0.95rem;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #7f8c8d;
+    }
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .modal-content { max-width: 500px; width: 90%; margin: 2rem auto; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); background-color: white; position: relative; }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+    .submit-btn { width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #3498db, #2980b9); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 1rem; }
+    .modal-content h2 { margin-top: 0; margin-bottom: 1.5rem; }
+  </style>
+</head>
+<body>
+  <header class="main-header">
+    <h1 class="title">错误记录</h1>
+    <p class="subtitle">温故知新，查漏补缺</p>
+  </header>
+  
+
+  
+  <div class="action-buttons">
+      <button id="add-record-btn" class="btn primary-btn"><i class="icon">➕</i> 记录新错误</button>
+      <button id="archive-btn" class="btn secondary-btn"><i class="icon">📦</i> 归档记录</button>
+    </div>
+
+  <!-- 添加错误记录的模态框 -->
+  <div id="error-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h2>记录新错误</h2>
+      <form id="error-form">
+        <div class="form-group">
+          <label for="error-type">错误类型:</label>
+          <select id="error-type" required>
+            <option value="">请选择错误类型</option>
+            <option value="basic">基础不扎实</option>
+            <option value="mentality">心态问题</option>
+            <option value="time">时间规划</option>
+            <option value="schedule">作息问题</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="error-description">具体描述:</label>
+          <textarea id="error-description" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="error-date">错误时间:</label>
+          <input type="date" id="error-date" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="point-rule">扣除积分规则:</label>
+          <select id="point-rule" required>
+            <option value="add">累加</option>
+            <option value="multiply">累乘</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="coefficient">扣除积分系数:</label>
+          <input type="number" id="coefficient" step="0.01" min="0.01" required>
+        </div>
+        
+        <button type="submit" class="submit-btn">保存记录</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- 归档密码模态框 -->
+  <div id="archive-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h2>确认归档</h2>
+      <p>请输入管理员密钥:</p>
+      <input type="password" id="admin-key" required>
+      <button id="confirm-archive" class="submit-btn">确认归档</button>
+    </div>
+  </div>
+  
+  <!-- 扣分统计 -->
+  <div class="stats-container">
+    <div class="stat-card">
+      <h3>未归档总扣分</h3>
+      <p id="unarchived-score" class="score-value">0</p>
+    </div>
+    <div class="stat-card">
+      <h3>已归档批次</h3>
+      <div id="archive-batches" class="batch-list"></div>
+    </div>
+  </div>
+  
+  <div class="records-section">
+    <div class="section-header">
+      <h2>未归档错误记录</h2>
+    </div>
+    <div id="unarchived-records" class="record-list"></div>
+  </div>
+
+  <div class="records-section">
+    <div class="section-header">
+      <h2>已归档错误记录</h2>
+    </div>
+    <div id="archived-records" class="record-list"></div>
+  </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Supabase初始化
+    const supabaseUrl = 'https://uqxhnjdckqyathfuvnsb.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxeGhuamRja3F5YXRoZnV2bnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNjM1MTksImV4cCI6MjA2NzYzOTUxOX0.eIKLbQJK7UgwWR3dP_kzqMdaWR_ys7PtGIy83_0c628';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    
+    // DOM元素
+    const addRecordBtn = document.getElementById('add-record-btn');
+    const errorModal = document.getElementById('error-modal');
+    const archiveModal = document.getElementById('archive-modal');
+    const closeBtns = document.querySelectorAll('.close-btn');
+    const errorForm = document.getElementById('error-form');
+    const archiveBtn = document.getElementById('archive-btn');
+    const confirmArchiveBtn = document.getElementById('confirm-archive');
+    const unarchivedRecords = document.getElementById('unarchived-records');
+    const archivedRecords = document.getElementById('archived-records');
+    const unarchivedScore = document.getElementById('unarchived-score');
+    const archiveBatches = document.getElementById('archive-batches');
+    const adminKeyInput = document.getElementById('admin-key');
+    
+    // 管理员密钥 (实际应用中应该存储在服务器端)
+    const ADMIN_KEY = 'admin123';
+    
+    // 模态框控制
+    addRecordBtn.addEventListener('click', () => {
+      errorModal.style.display = 'flex';
+      // 设置默认日期为今天
+      document.getElementById('error-date').valueAsDate = new Date();
+    });
+    
+    archiveBtn.addEventListener('click', () => {
+      archiveModal.style.display = 'flex';
+      adminKeyInput.value = '';
+    });
+    
+    closeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        errorModal.style.display = 'none';
+        archiveModal.style.display = 'none';
+      });
+    });
+    
+    // 点击模态框外部关闭
+    window.addEventListener('click', (e) => {
+      if (e.target === errorModal) errorModal.style.display = 'none';
+      if (e.target === archiveModal) archiveModal.style.display = 'none';
+    });
+    
+    // 表单提交处理
+    errorForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const errorType = document.getElementById('error-type').value;
+      const description = document.getElementById('error-description').value;
+      const errorDate = document.getElementById('error-date').value;
+      const pointRule = document.getElementById('point-rule').value;
+      const coefficient = parseFloat(document.getElementById('coefficient').value);
+      
+      // 保存错误记录到Supabase
+      const { data, error } = await supabaseClient
+        .from('error_records')
+        .insert([
+          {
+            error_type: errorType,
+            description: description,
+            error_date: errorDate,
+            point_rule: pointRule,
+            coefficient: coefficient,
+            is_archived: false
+          }
+        ]);
+      
+      if (error) {
+        console.error('保存错误记录失败:', error);
+        alert('保存失败: ' + error.message);
+      } else {
+        errorModal.style.display = 'none';
+        errorForm.reset();
+        alert('错误记录保存成功!');
+        loadErrorRecords(); // 重新加载记录
+      }
+    });
+    
+    // 归档处理
+    confirmArchiveBtn.addEventListener('click', async () => {
+      const adminKey = adminKeyInput.value;
+      if (adminKey !== ADMIN_KEY) {
+        alert('管理员密钥不正确');
+        return;
+      }
+      
+      // 获取未归档记录
+      const { data: unarchivedData, error: fetchError } = await supabaseClient
+        .from('error_records')
+        .select('*')
+        .eq('is_archived', false);
+      
+      if (fetchError || !unarchivedData.length) {
+        alert('没有可归档的记录');
+        return;
+      }
+      
+      // 获取最新批次号
+      const { data: batchData, error: batchError } = await supabaseClient
+        .from('archive_batches')
+        .select('batch_number')
+        .order('batch_number', { ascending: false })
+        .limit(1);
+      
+      const batchNumber = batchData.length ? batchData[0].batch_number + 1 : 1;
+      
+      // 计算总扣分
+      const totalScore = calculateTotalScore(unarchivedData);
+      
+      // 创建归档批次
+      const { data: newBatch, error: batchInsertError } = await supabaseClient
+        .from('archive_batches')
+        .insert([
+          {
+            batch_number: batchNumber,
+            archive_date: new Date().toISOString(),
+            total_score: totalScore
+          }
+        ])
+        .select();
+      
+      if (batchInsertError) {
+        console.error('创建归档批次失败:', batchInsertError);
+        alert('归档失败: ' + batchInsertError.message);
+        return;
+      }
+      
+      // 更新记录为已归档
+      const { error: updateError } = await supabaseClient
+        .from('error_records')
+        .update({
+          is_archived: true,
+          archive_batch_id: newBatch[0].id
+        })
+        .eq('is_archived', false);
+      
+      if (updateError) {
+        console.error('更新归档状态失败:', updateError);
+        alert('归档失败: ' + updateError.message);
+        return;
+      }
+      
+      archiveModal.style.display = 'none';
+      alert(`成功归档 ${unarchivedData.length} 条记录，批次号: ${batchNumber}`);
+      loadErrorRecords();
+      loadArchiveBatches();
+    });
+    
+    // 计算总扣分
+    function calculateTotalScore(records) {
+      let addSum = 0;
+      let multiplySum = 0;
+      
+      records.forEach(record => {
+        if (record.point_rule === 'add') {
+          addSum += record.coefficient;
+        } else {
+          multiplySum += record.coefficient;
+        }
+      });
+      
+      const multiplyResult = Math.pow(1.8, multiplySum);
+      return Math.ceil(addSum + multiplyResult);
+    }
+    
+    // 加载错误记录
+    async function loadErrorRecords() {
+      // 加载未归档记录
+      const { data: unarchivedData, error: unarchivedError } = await supabaseClient
+        .from('error_records')
+        .select('*')
+        .eq('is_archived', false)
+        .order('error_date', { ascending: false });
+      
+      if (unarchivedError) {
+        console.error('加载未归档记录失败:', unarchivedError);
+      } else if (unarchivedData.length) {
+        unarchivedRecords.innerHTML = unarchivedData.map(record => createRecordElement(record)).join('');
+        unarchivedScore.textContent = calculateTotalScore(unarchivedData);
+      } else {
+        unarchivedRecords.innerHTML = `
+          <div class="empty-state">
+            <i>📊</i>
+            <h3>暂无未归档错误记录</h3>
+            <p>点击"记录新错误"按钮添加记录</p>
+          </div>
+        `;
+        unarchivedScore.textContent = '0';
+      }
+      
+      // 加载已归档记录
+      const { data: archivedData, error: archivedError } = await supabaseClient
+        .from('error_records')
+        .select('*, archive_batches(batch_number)')
+        .eq('is_archived', true)
+        .order('error_date', { ascending: false });
+      
+      if (archivedError) {
+        console.error('加载已归档记录失败:', archivedError);
+      } else if (archivedData.length) {
+        archivedRecords.innerHTML = archivedData.map(record => createRecordElement(record, true)).join('');
+      } else {
+        archivedRecords.innerHTML = `
+          <div class="empty-state">
+            <i>📦</i>
+            <h3>暂无已归档错误记录</h3>
+            <p>将未归档记录归档后显示在这里</p>
+          </div>
+        `;
+      }
+    }
+    
+    // 加载归档批次
+    async function loadArchiveBatches() {
+      const { data: batches, error } = await supabaseClient
+        .from('archive_batches')
+        .select('*')
+        .order('batch_number', { ascending: false });
+      
+      if (error) {
+        console.error('加载归档批次失败:', error);
+      } else if (batches.length) {
+        archiveBatches.innerHTML = batches.map(batch => `
+          <div class="batch-item">
+            <p>批次 ${batch.batch_number}: ${batch.total_score} 分</p>
+            <small>${new Date(batch.archive_date).toLocaleDateString()}</small>
+          </div>
+        `).join('');
+      } else {
+        archiveBatches.innerHTML = '<p>暂无归档批次</p>';
+      }
+    }
+    
+    // 创建记录元素
+    function createRecordElement(record, isArchived = false) {
+      const errorTypes = {
+        'basic': '基础不扎实',
+        'mentality': '心态问题',
+        'time': '时间规划',
+        'schedule': '作息问题'
+      };
+      
+      const ruleTypes = {
+        'add': '累加',
+        'multiply': '累乘'
+      };
+      
+      return `
+        <div class="record-item">
+          <div class="record-question">
+            ${errorTypes[record.error_type]} (${ruleTypes[record.point_rule]}: ${record.coefficient})
+            ${isArchived ? `<span class="archive-badge">批次 ${record.archive_batches.batch_number}</span>` : ''}
+          </div>
+          <div class="record-date">${new Date(record.error_date).toLocaleDateString()}</div>
+          <div class="record-solution">${record.description}</div>
+        </div>
+      `;
+    }
+    
+    // 页面加载时加载数据
+    window.addEventListener('DOMContentLoaded', () => {
+      loadErrorRecords();
+      loadArchiveBatches();
+    });
+  </script>
+</body>
+</html>
