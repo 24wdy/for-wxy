@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>舒尔特方格训练</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .schulte-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      border-radius: 50px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .timer {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    
+    .grid {
+      display: grid;
+      gap: 10px;
+      background-color: #ecf0f1;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .grid-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: white;
+      border-radius: 8px;
+      font-size: 1.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      aspect-ratio: 1/1;
+    }
+    
+    .grid-item:hover {
+      background-color: #3498db;
+      color: white;
+    }
+    
+    .grid-item.active {
+      background-color: #2ecc71;
+      color: white;
+    }
+    
+    .difficulty-selector, .mode-selector {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .grid-item.hidden-number {
+      color: transparent;
+      user-select: none;
+    }
+
+    .memory-message {
+      font-size: 1.2rem;
+      color: #2c3e50;
+      height: 1.5rem;
+    }
+    
+    .difficulty-selector select {
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 2px solid #3498db;
+      font-size: 1rem;
+    }
+    
+    .result {
+      font-size: 1.2rem;
+      color: #2c3e50;
+      margin-top: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+      .timer {
+        font-size: 1.5rem;
+      }
+      
+      .grid-item {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="title">舒尔特方格注意力训练</h1>
+  
+  <div class="schulte-container">
+    <div class="controls">
+      <div class="difficulty-selector">
+        <label for="difficulty">难度:</label>
+        <select id="difficulty">
+          <option value="3">简单 (3x3)</option>
+          <option value="4" selected>中等 (4x4)</option>
+          <option value="5">困难 (5x5)</option>
+          <option value="6">专家 (6x6)</option>
+        </select>
+      </div>
+      <div class="mode-selector">
+        <label for="mode">模式:</label>
+        <select id="mode">
+          <option value="normal" selected>普通模式</option>
+          <option value="memory">记忆模式</option>
+        </select>
+      </div>
+      <div id="start-recall-btn-container" style="display: none;">
+        <button id="start-recall-btn">开始记忆测试</button>
+      </div>
+      <button id="start-btn">开始训练</button>
+      <button id="reset-btn" disabled>重置</button>
+    </div>
+    
+    <div class="timer" id="timer">00:00.00</div>
+    <div class="memory-message" id="memoryMessage"></div>
+    <div class="grid" id="grid"></div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Supabase初始化
+      const supabaseUrl = 'https://uqxhnjdckqyathfuvnsb.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxeGhuamRja3F5YXRoZnV2bnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNjM1MTksImV4cCI6MjA2NzYzOTUxOX0.eIKLbQJK7UgwWR3dP_kzqMdaWR_ys7PtGIy83_0c628';
+      const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+      const grid = document.getElementById('grid');
+      const startBtn = document.getElementById('start-btn');
+      const resetBtn = document.getElementById('reset-btn');
+      const timerDisplay = document.getElementById('timer');
+      const resultDisplay = document.getElementById('result');
+      const difficultySelect = document.getElementById('difficulty');
+      const modeSelect = document.getElementById('mode');
+      const memoryMessage = document.getElementById('memoryMessage');
+      const startRecallBtn = document.getElementById('start-recall-btn');
+      const startRecallBtnContainer = document.getElementById('start-recall-btn-container');
+      
+      let currentNumber = 1;
+      let startTime;
+      let timerInterval;
+      let gridSize = 4;
+      let isPlaying = false;
+      let gameMode = 'normal';
+      let memoryPhase = false;
+      let userClicks = [];
+      let correctSequence = [];
+      
+      // 开始记忆测试按钮点击事件
+      startRecallBtn.addEventListener('click', () => {
+        if (!memoryPhase) return;
+        
+        const items = grid.querySelectorAll('.grid-item');
+        items.forEach(item => {
+          item.classList.add('hidden-number');
+          correctSequence.push(parseInt(item.dataset.number));
+        });
+        memoryMessage.textContent = '请按顺序点击数字1、2、3...';
+        memoryPhase = false;
+        startRecallBtnContainer.style.display = 'none';
+        startTime = new Date().getTime();
+        updateTimer();
+      });
+      
+      // 生成随机数字数组
+      function generateNumbers(size) {
+        const numbers = Array.from({ length: size * size }, (_, i) => i + 1);
+        // 洗牌算法 - Fisher-Yates
+        for (let i = numbers.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+        }
+        return numbers;
+      }
+      
+      // 创建网格
+      function createGrid(size) {
+        grid.innerHTML = '';
+        grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        
+        const numbers = generateNumbers(size);
+        
+        numbers.forEach(number => {
+          const gridItem = document.createElement('div');
+          gridItem.classList.add('grid-item');
+          gridItem.textContent = number;
+          gridItem.dataset.number = number;
+          
+          gridItem.addEventListener('click', () => handleGridItemClick(gridItem));
+          grid.appendChild(gridItem);
+        });
+      }
+      
+      // 处理网格项点击
+      function handleGridItemClick(item) {
+        if (!isPlaying || memoryPhase) return;
+
+        const number = parseInt(item.dataset.number);
+
+        if (gameMode === 'normal') {
+          if (number === currentNumber) {
+            item.classList.add('active');
+            currentNumber++;
+
+            // 检查游戏是否完成
+            if (currentNumber > 9) {
+              endGame();
+            }
+          }
+        } else {
+          // 记忆模式下记录点击
+          userClicks.push(number);
+          
+          // 检查点击是否正确
+          const expectedNumber = currentNumber;
+          if (number === expectedNumber) {
+            item.classList.add('active'); // 正确点击 - 绿色
+          } else {
+            item.classList.add('incorrect'); // 错误点击 - 红色
+            
+            // 1秒后移除错误样式
+            setTimeout(() => {
+              item.classList.remove('incorrect');
+            }, 1000);
+          }
+          
+          currentNumber++;
+
+          // 检查游戏是否完成
+          if (currentNumber > 9) {
+            endGame();
+          }
+        }
+      }
+      
+      // 开始游戏
+      function startGame() {
+        gridSize = parseInt(difficultySelect.value);
+        gameMode = modeSelect.value;
+        currentNumber = 1;
+        isPlaying = true;
+        userClicks = [];
+        correctSequence = [];
+        memoryMessage.textContent = '';
+
+        createGrid(gridSize);
+
+        startBtn.disabled = true;
+        resetBtn.disabled = false;
+        difficultySelect.disabled = true;
+        modeSelect.disabled = true;
+        resultDisplay.textContent = '';
+
+        if (gameMode === 'memory') {
+          // 记忆模式: 先显示数字
+          memoryPhase = true;
+          memoryMessage.textContent = '记忆数字位置...';
+
+          // 短暂显示后隐藏数字
+          // 显示开始记忆测试按钮
+          startRecallBtnContainer.style.display = 'block';
+          memoryMessage.textContent = '记忆完成后点击下方按钮开始测试';
+        } else {
+          // 普通模式
+          startTime = new Date().getTime();
+          updateTimer();
+        }
+      }
+      
+      // 结束游戏
+      function endGame() {
+        isPlaying = false;
+        clearInterval(timerInterval);
+
+        startBtn.disabled = false;
+        difficultySelect.disabled = false;
+        modeSelect.disabled = false;
+
+        const endTime = new Date().getTime();
+        const timeTaken = (endTime - startTime) / 1000; // 秒
+
+        // 保存游戏结果
+        saveGameResult(timeTaken);
+
+        if (gameMode === 'normal') {
+          // 计算平均每秒点击数
+          const clicksPerSecond = (gridSize * gridSize) / timeTaken;
+          resultDisplay.textContent = `完成! 用时: ${timeTaken.toFixed(2)}秒, 平均每秒点击: ${clicksPerSecond.toFixed(2)}次`;
+        } else {
+          // 记忆模式
+          resultDisplay.textContent = `记忆完成! 用时: ${timeTaken.toFixed(2)}秒`;
+        }
+
+        // 添加完成动画效果
+        // 显示所有数字
+        const gridItems = grid.querySelectorAll('.grid-item');
+        gridItems.forEach(item => {
+          item.classList.remove('hidden-number');
+          item.style.color = 'black';
+        });
+
+        grid.classList.add('completed');
+        setTimeout(() => {
+          grid.classList.remove('completed');
+        }, 2000);
+      }
+      
+      // 保存游戏结果到Supabase
+      async function saveGameResult(timeTaken) {
+        try {
+          const { data, error } = await supabase
+            .from('game_history')
+            .insert([
+              {
+                game_mode: gameMode,
+                difficulty: gridSize,
+                time_taken: timeTaken,
+                completed_at: new Date().toISOString()
+              }
+            ]);
+
+          if (error) throw error;
+          console.log('游戏结果已保存:', data);
+        } catch (error) {
+          console.error('保存游戏结果失败:', error.message);
+        }
+      }
+
+      // 重置游戏
+      function resetGame() {
+        isPlaying = false;
+        memoryPhase = false;
+        clearInterval(timerInterval);
+
+        grid.innerHTML = '';
+        timerDisplay.textContent = '00:00.00';
+        resultDisplay.textContent = '';
+        memoryMessage.textContent = '';
+
+        startBtn.disabled = false;
+        resetBtn.disabled = true;
+        difficultySelect.disabled = false;
+        modeSelect.disabled = false;
+      }
+      
+      // 更新计时器
+      function updateTimer() {
+        timerInterval = setInterval(() => {
+          const currentTime = new Date().getTime();
+          const elapsedTime = currentTime - startTime;
+          
+          const minutes = Math.floor(elapsedTime / 60000);
+          const seconds = Math.floor((elapsedTime % 60000) / 1000);
+          const milliseconds = Math.floor((elapsedTime % 1000) / 10);
+          
+          timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+        }, 10);
+      }
+      
+      // 事件监听
+      startBtn.addEventListener('click', startGame);
+      resetBtn.addEventListener('click', resetGame);
+      
+      // 初始创建网格
+      createGrid(gridSize);
+    });
+  </script>
+</body>
+</html>
