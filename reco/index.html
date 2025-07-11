@@ -322,17 +322,20 @@
     function calculateTotalScore(records) {
       let addSum = 0;
       let multiplySum = 0;
+      let function1Sum = 0;
       
       records.forEach(record => {
         if (record.point_rule === 'add') {
           addSum += record.coefficient;
-        } else {
+        } else if (record.point_rule === 'multiply'){
           multiplySum += record.coefficient;
+        } else {
+          function1Sum += record.coefficient;
         }
       });
-      
+      const function1Result = (3/2)*(sin((π/2) *function1Sum)+sin(π*function1Sum)+function1Sum)^(4/5);
       const multiplyResult = Math.pow(1.8, multiplySum);
-      return Math.ceil(addSum + multiplyResult);
+      return Math.ceil(addSum + multiplyResult + function1Result);
     }
     
     // 加载错误记录
