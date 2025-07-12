@@ -102,10 +102,10 @@
             border: 2px solid #2196F3;
         }
         .jade-stone.match-1 .jade-left, .jade-stone.match-1 .jade-right {
-            background-color: #ffcccc;
+            background-color: #ffcccc !important;
         }
         .jade-stone.match-2 .jade-left, .jade-stone.match-2 .jade-right {
-            background-color: #4a90e2;
+            background-color: #4a90e2 !important;
         }
         .jade-stone.match-3 .jade-left, .jade-stone.match-3 .jade-right {
             background-color: #ccccff;
@@ -457,6 +457,7 @@
                 // 所有匹配处理完成后更新颜色索引
                 gameState.matchColorIndex = (gameState.matchColorIndex % 2) + 1;
                 console.log('颜色索引更新为:', gameState.matchColorIndex); // 确保在1和2之间切换
+                console.log('应用颜色类: match-' + gameState.matchColorIndex);
             }            
 
             // 更新分数
