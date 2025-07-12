@@ -114,6 +114,7 @@
           <select id="point-rule" required>
             <option value="add">累加</option>
             <option value="multiply">累乘</option>
+            <option value="function1">函数1</option>
           </select>
         </div>
         
@@ -321,17 +322,20 @@
     function calculateTotalScore(records) {
       let addSum = 0;
       let multiplySum = 0;
+      let function1Sum = 0;
       
       records.forEach(record => {
         if (record.point_rule === 'add') {
           addSum += record.coefficient;
-        } else {
+        } else if (record.point_rule === 'multiply'){
           multiplySum += record.coefficient;
+        } else {
+          function1Sum += record.coefficient;
         }
       });
-      
+      const function1Result = (3/2)*(Math.sin((Math.PI/2) *function1Sum)+Math.sin(Math.PI*function1Sum)+function1Sum)^(4/5);
       const multiplyResult = Math.pow(1.8, multiplySum);
-      return Math.ceil(addSum + multiplyResult);
+      return Math.ceil(addSum + multiplyResult + function1Result);
     }
     
     // 加载错误记录
@@ -414,7 +418,8 @@
       
       const ruleTypes = {
         'add': '累加',
-        'multiply': '累乘'
+        'multiply': '累乘',
+        'function1': '函数1'
       };
       
       return `

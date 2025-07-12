@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸运抽卡系统</title>
+    <link rel="stylesheet" href="styles.css?v=1">
+    <style>
+        .gacha-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .gacha-machine {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .card-display {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+            min-height: 180px;
+        }
+        .card {
+            width: 120px;
+            height: 160px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            position: relative;
+            margin: 0 auto;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .draw-btn {
+            background-color: #e91e63;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .draw-btn:hover {
+            background-color: #c2185b;
+            transform: scale(1.05);
+        }
+        .draw-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="gacha-container">
+        <h1>幸运抽卡系统</h1>
+        <div class="gacha-machine">
+            <div class="card-display" id="cardDisplay"></div>
+            <div class="controls">
+                <button class="draw-btn" id="singleDrawBtn" onclick="drawCard(1)">单抽</button>
+                <button class="draw-btn" id="tenDrawBtn" onclick="drawCard(10)">十连抽</button>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // 卡片数据配置 - 可扩展为JSON文件
+        const cardPool = [
+            { id: 1, name: "勇者之剑", image: "/gacha/images/1.jpg", probability: 1 },
+            { id: 2, name: "魔法披风", image: "/gacha/images/2.jpg", probability: 1 },
+            { id: 3, name: "治愈药水", image: "/gacha/images/3.jpg", probability: 1 },
+            { id: 4, name: "力量戒指", image: "/gacha/images/4.jpg", probability: 1 },
+            { id: 5, name: "龙鳞铠甲", image: "/gacha/images/5.jpg", probability: 1 },
+            { id: 6, name: "智慧法杖", image: "/gacha/images/6.jpg", probability: 1 },
+            { id: 7, name: "神圣头盔", image: "/gacha/images/7.jpg", probability: 1 }
+        ];
+
+        const cardDisplay = document.getElementById('cardDisplay');
+        const singleDrawBtn = document.getElementById('singleDrawBtn');
+        const tenDrawBtn = document.getElementById('tenDrawBtn');
+
+        // 生成加权随机卡片
+        function getRandomCard() {
+            const totalProbability = cardPool.reduce((sum, card) => sum + card.probability, 0);
+            let random = Math.random() * totalProbability;
+            let selectedCard = null;
+
+            for (const card of cardPool) {
+                random -= card.probability;
+                if (random <= 0) {
+                    selectedCard = { ...card };
+                    break;
+                }
+            }
+            return selectedCard;
+        }
+
+        // 抽卡函数
+        function drawCard(count) {
+            if (count !== 1 && count !== 10) return;
+
+            // 禁用按钮防止重复点击
+            singleDrawBtn.disabled = true;
+            tenDrawBtn.disabled = true;
+            cardDisplay.innerHTML = '';
+
+            const drawnCards = [];
+            let delay = 0;
+
+            // 模拟抽卡动画延迟
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const card = getRandomCard();
+                    drawnCards.push(card);
+                    displayCard(card);
+
+                    // 最后一张卡绘制完成后更新历史
+                    if (i === count - 1) {
+                        updateHistory(drawnCards);
+                        // 恢复按钮
+                        setTimeout(() => {
+                            singleDrawBtn.disabled = false;
+                            tenDrawBtn.disabled = false;
+                        }, 500);
+                    }
+                }, delay);
+                delay += 300; // 每张卡间隔300ms
+            }
+        }
+
+        // 显示卡片到界面
+        function displayCard(card) {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'card';
+            cardElement.innerHTML = `
+            
+                <img src="${card.image}" alt="${card.name}" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s ease">
+            `;
+            cardDisplay.appendChild(cardElement);
+        }
+
+        
+    </script>
+</body>
+</html>

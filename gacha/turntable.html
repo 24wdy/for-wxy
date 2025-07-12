@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸运转盘</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .turntable-container {
+                position: relative;
+                margin: 2rem auto;
+                width: 80vw;
+                height: 80vw;
+                max-width: 500px;
+                max-height: 500px;
+                border: 10px solid #333;
+                border-radius: 50%;
+                overflow: visible;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            /* 坐标系调试辅助线 */
+            .debug-axis {
+                position: absolute;
+                background-color: rgba(0, 255, 0, 0.3);
+                z-index: 1;
+            }
+            .x-axis {
+                width: 100%;
+                height: 1px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+            .y-axis {
+                width: 1px;
+                height: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+          .center-marker {
+              position: absolute;
+              width: 10px;
+              height: 10px;
+              background-color: red;
+              border-radius: 50%;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              z-index: 100;
+          }
+        .turntable {
+              width: 100%;
+              height: 100%;
+              border-radius: 50%;
+              transition: transform 5s cubic-bezier(0.1, 0.8, 0.2, 1);
+              position: relative;
+              overflow: visible;
+              box-sizing: border-box; /* 确保尺寸计算包含边框 */
+          }
+        .turntable-sector {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: center;
+            overflow: hidden;
+        }
+        .sector-bg {
+                position: absolute;
+                width: 100px;
+                height: 100px;
+                background-size: contain;
+                background-position: center;
+                background-repeat: no-repeat;
+                border: 3px solid red; /* 加粗边框增强可见性 */
+                background-color: rgba(173, 216, 230, 0.7); /* 提高透明度便于观察 */
+                transform-origin: top center;
+                z-index: 2;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: red;
+                font-weight: bold;
+            }
+        .position-marker {
+                position: absolute;
+                width: 15px;
+                height: 15px;
+                background-color: yellow;
+                border: 2px solid black;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 3;
+            }
+        .coordinate-label {
+                position: absolute;
+                color: black;
+                font-size: 12px;
+                font-weight: bold;
+                transform: translate(-50%, -50%);
+                z-index: 3;
+            }
+        .turntable-center {
+            position: absolute;
+            width: 20%;
+            height: 20%;
+            border-radius: 50%;
+            background: #ff6b6b;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        .result-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .result-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+        }
+        .result-image {
+            max-width: 80vw;
+            max-height: 60vh;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h1 class="title">幸运转盘</h1>
+    </header>
+    <main>
+        <div class="turntable-container">
+            <div class="turntable" id="turntable">
+                <!-- 转盘扇区将通过JS动态生成 -->
+            </div>
+            <div class="turntable-center" id="startBtn">开始</div>
+        </div>
+        <div class="result-modal" id="resultModal">
+            <div class="result-content">
+                <img src="" alt="抽奖结果" class="result-image" id="resultImage">
+                <button onclick="document.getElementById('resultModal').style.display='none'">关闭</button>
+            </div>
+        </div>
+    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const turntable = document.getElementById('turntable');
+            // 添加调试用坐标系
+            const xAxis = document.createElement('div');
+            xAxis.className = 'debug-axis x-axis';
+            turntable.appendChild(xAxis);
+            
+            const yAxis = document.createElement('div');
+            yAxis.className = 'debug-axis y-axis';
+            turntable.appendChild(yAxis);
+            
+            // 添加调试用圆心标记
+            const centerMarker = document.createElement('div');
+            centerMarker.className = 'center-marker';
+            turntable.appendChild(centerMarker);
+            const startBtn = document.getElementById('startBtn');
+            const resultModal = document.getElementById('resultModal');
+            const resultImage = document.getElementById('resultImage');
+            const sectorCount = 14; // 14等分用于定位，实际显示7张图片
+            const anglePerSector = 360 / sectorCount; // 每个扇区角度
+            const radius = 42; // 转盘半径百分比
+            const apothem = radius * Math.cos((anglePerSector / 2) * Math.PI / 180); // 边心距（圆心到弦的距离）
+            
+            const apothem = radius * Math.cos((anglePerSector / 2) * Math.PI / 180); // 边心距 - 提前计算
+            let isSpinning = false;
+
+            // 创建转盘扇区
+            for (let i = 0; i < sectorCount; i++) {
+                const sector = document.createElement('div');
+                sector.className = 'turntable-sector';
+                const angle = i * anglePerSector;
+                const skewAngle = 90 - anglePerSector; // 计算倾斜角度
+                const halfAngle = anglePerSector / 2;
+                const startAngle = angle;
+                const endAngle = angle + anglePerSector;
+                
+                // 转换角度为弧度
+                const centerX = 50;
+                const centerY = 50;
+                const radius = 42; // 进一步微调半径百分比优化绝对位置
+                const apothem = radius * Math.cos((anglePerSector / 2) * Math.PI / 180); /* 提前声明边心距 */
+                
+                // 计算扇区边界点
+                const startRad = startAngle * Math.PI / 180;
+                const endRad = endAngle * Math.PI / 180;
+                
+                const startX = centerX + radius * Math.cos(startRad);
+                const startY = centerY - radius * Math.sin(startRad);
+                const endX = centerX + radius * Math.cos(endRad);
+                const endY = centerY - radius * Math.sin(endRad);
+                
+                // 设置扇区形状
+                // 恢复clip-path以创建扇区形状
+                // 移除裁剪路径以显示完整图片
+                // sector.style.clipPath = `polygon(${centerX}% ${centerY}%, ${startX}% ${startY}%, ${endX}% ${endY}%)`;
+                sector.style.transform = `rotate(${angle}deg)`;
+                // 创建从圆心到边缘的分界线（仅奇数连线作为分界线）
+                if (i % 2 === 1) {
+                    const divider = document.createElement('div');
+                    divider.style.position = 'absolute';
+                    // 精确计算分界线长度（半径 - 边框宽度）
+                    divider.style.width = 'calc(50% - 10px)'; /* 半径50% - 边框10px，精确匹配容器尺寸 */
+                    divider.style.height = '2px';
+                    divider.style.backgroundColor = '#000';
+                    divider.style.position = 'absolute';
+                    divider.style.top = '50%';
+                    divider.style.left = '50%';
+                    divider.style.transformOrigin = '0 50%'; /* 旋转起点为圆心（左端点垂直居中） */
+                    divider.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateX(0)`; /* 从圆心精确开始绘制 */
+                    divider.style.zIndex = '2';
+                    turntable.appendChild(divider);
+                }
+                sector.style.backgroundColor = 'transparent';
+                
+                // 偶数连线中点定位图片
+                if (i % 2 === 0) {
+                    const imgIndex = (i / 2) + 1; // 偶数索引对应7张图片循环 (0→1, 2→2, ..., 12→7)
+                    // 调整背景图片位置和旋转
+                    const bgDiv = document.createElement('div');
+                    const bgRotation = -i * anglePerSector; // 使用连线角度计算旋转
+                    bgDiv.style.transform = `translate(-50%, -50%) rotate(${bgRotation}deg)`;
+
+
+                    bgDiv.className = 'sector-bg';
+                    bgDiv.style.position = 'absolute';
+                    // 使用绝对路径确保图片加载
+                    bgDiv.style.backgroundImage = `url('images/${imgIndex}.jpg')`; /* 相对路径引用图片 */
+                    
+                    bgDiv.style.backgroundSize = 'contain';
+                    bgDiv.style.backgroundPosition = 'center';
+                    bgDiv.style.backgroundRepeat = 'no-repeat';
+                    // 已在上方声明，移除重复定义
+                    // 计算弦长并设置为图片宽度
+                    // 集中声明所有变量并确保正确依赖顺序
+                      // 使用循环外声明的apothem变量
+                      // const apothem = radius * Math.cos((anglePerSector / 2) * Math.PI / 180); /* 移除重复声明 */
+                    const chordLength = 2 * 50 * Math.sin((anglePerSector / 2) * Math.PI / 180);
+                    // 固定尺寸确保可见
+                    bgDiv.style.width = '100px';
+                    bgDiv.style.height = '150px'; /* 固定高度确保可见 */
+                    bgDiv.style.border = '1px solid blue'; /* 调试边框 */
+                      const midAngle = i * anglePerSector * Math.PI / 180; // 使用连线角度计算中点
+                      const midX = centerX + (apothem * 0.8) * Math.cos(midAngle); /* 调整边心距比例确保可见 */
+                      const midY = centerY - (apothem * 0.8) * Math.sin(midAngle); /* 调整边心距比例确保可见 */
+                      bgDiv.style.height = '100px'; // 移至变量声明后避免依赖问题
+                      // 调整旋转原点和方向，使图片下方指向圆心
+                      // 上边缘对齐弦，底部指向圆心
+                    bgDiv.style.height = `${apothem}%`; /* 动态高度确保底部指向圆心 */
+                    // 上边缘对齐弦线，底部指向圆心
+                    bgDiv.textContent = `${imgIndex}`; // 显示图片编号
+                    // 上边缘与弦线对齐，底部指向圆心
+                    bgDiv.style.transform = `translate(-50%, -50%) rotate(${bgRotation}deg)`; /* 中心点对齐弦中点 */
+                    // 校准绝对位置，基于容器中心调整
+                    bgDiv.style.top = `${midY}%`; /* 使用计算后的midY直接定位，移除额外偏移 */
+                    // 恢复动态高度确保底部指向圆心
+                    bgDiv.style.height = `${apothem}%`; /* 高度=圆心到弦距离，确保底部指向圆心 */
+                      bgDiv.style.transformOrigin = 'top center'; /* 以上边缘中心为旋转点 */
+                    // 添加黄色定位标记显示弦中点
+                    const positionMarker = document.createElement('div');
+                    positionMarker.className = 'position-marker';
+                    positionMarker.style.left = `${midX}%`;
+                    positionMarker.style.top = `${midY}%`;
+                    turntable.appendChild(positionMarker);
+                    
+                    // 添加坐标标签
+                    const label = document.createElement('div');
+                    label.className = 'coordinate-label';
+                    label.style.left = `${midX}%`;
+                    label.style.top = `${midY - 10}%`; // 标签显示在标记上方
+                    label.textContent = `图${imgIndex}:(${midX.toFixed(1)}%,${midY.toFixed(1)}%)`; /* 添加图片编号 */
+                    turntable.appendChild(label);
+                    
+                    // 图片定位
+                    bgDiv.style.left = `${midX}%`;
+                    bgDiv.style.top = `${midY}%`;
+                    bgDiv.style.zIndex = '2';
+                        // 错误处理
+                    const img = new Image();
+                    img.src = `images/${imgIndex}.jpg`; /* 相对路径错误检测 */
+                    console.log('尝试加载图片:', img.src);
+                    img.onerror = () => {
+                        bgDiv.style.backgroundImage = `url('images/default.svg')`; /* 相对路径默认图 */
+                        console.log('图片加载失败，使用默认图:', img.src);
+                        console.log('默认图路径:', 'images/default.svg');
+                    };
+                    turntable.appendChild(bgDiv);
+                }
+                turntable.appendChild(sector);
+            }
+
+            turntable.style.position = 'relative';
+            turntable.style.width = '500px';
+            turntable.style.height = '500px';
+            // 旋转转盘
+            startBtn.addEventListener('click', () => {
+                if (isSpinning) return;
+                isSpinning = true;
+                startBtn.disabled = true;
+                startBtn.textContent = '旋转中...';
+
+                // 随机旋转角度 (3-5圈 + 随机位置)
+                const randomRounds = 3 + Math.random() * 2;
+                const randomAngle = Math.random() * 360;
+                const totalAngle = randomRounds * 360 + randomAngle;
+
+                turntable.style.transform = `rotate(${totalAngle}deg)`;
+
+                // 计算结果
+                setTimeout(() => {
+                    const normalizedAngle = totalAngle % 360;
+                    const selectedSector = Math.floor((360 - normalizedAngle) % 360 / anglePerSector);
+                    const selectedImage = `images/${selectedSector + 1}.jpg`;
+
+                    resultImage.src = selectedImage;
+                    resultModal.style.display = 'flex';
+                    isSpinning = false;
+                    startBtn.disabled = false;
+                    startBtn.textContent = '开始';
+                }, 5000); // 与CSS过渡时间一致
+            });
+        });
+    </script>
+</body>
+</html>
