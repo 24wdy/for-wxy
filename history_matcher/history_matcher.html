@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/gacha/images/default.svg" type="image/svg+xml">
+    <link rel="shortcut icon" href="/gacha/images/default.svg" type="image/svg+xml">
+    <title>历史时间点匹配游戏</title>
+    <link rel="stylesheet" href="../styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+
+
+    <style>
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+              padding: 20px;
+          }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .score-panel {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn.difficulty {
+            background-color: #2196F3;
+        }
+        .btn.add-event {
+            background-color: #ff9800;
+        }
+        .jade-container {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+        }
+        .jade-column {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .jade-stone {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .jade-half {
+            width: 50%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .jade-left {
+            background-color: #f0f0f0;
+            border-right: 1px solid #ccc;
+        }
+        .jade-right {
+            background-color: #e8e8e8;
+        }
+        .jade-stone.matched-odd {
+            background-color: #ffcccc;
+        }
+        .jade-stone.matched-even {
+            background-color: #cce5ff;
+        }
+        .jade-stone.selected-time .jade-left {
+            border: 2px solid #ff5722;
+        }
+        .jade-stone.selected-event .jade-right {
+            border: 2px solid #2196F3;
+        }
+        .jade-stone.match-1 .jade-left, .jade-stone.match-1 .jade-right {
+            background-color: #ffcccc;
+        }
+        .jade-stone.match-2 .jade-left, .jade-stone.match-2 .jade-right {
+            background-color: #4a90e2;
+        }
+        .jade-stone.match-3 .jade-left, .jade-stone.match-3 .jade-right {
+            background-color: #ccccff;
+        }
+        .jade-stone.match-4 .jade-left, .jade-stone.match-4 .jade-right {
+            background-color: #ffffcc;
+        }
+        .jade-stone.match-5 .jade-left, .jade-stone.match-5 .jade-right {
+            background-color: #ffccff;
+        }
+        .jade-content {
+            text-align: center;
+            font-size: 14px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 500px;
+            max-width: 90%;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .close-modal {
+            float: right;
+            font-size: 28px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>历史时间点匹配</h1>
+            <div class="score-panel">
+                得分: <span id="score">0</span>
+            </div>
+            <div class="controls">
+                <select id="difficultySelect" class="btn difficulty">
+                    <option value="1">简单</option>
+                    <option value="2">中等</option>
+                    <option value="3">困难</option>
+                    <option value="4">专家</option>
+                    <option value="5">大师</option>
+                </select>
+                <button id="startGameBtn" class="btn">开始游戏</button>
+                <button id="addEventBtn" class="btn add-event">添加事件</button>
+            </div>
+        </div>
+
+        <div class="jade-container">
+            <div class="jade-column" id="timePointColumn"></div>
+            <div class="jade-column" id="eventColumn"></div>
+        </div>
+    </div>
+
+    <!-- 添加事件模态框 -->
+    <div class="modal" id="addEventModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>添加历史事件</h2>
+            <form id="addEventForm">
+                <div class="form-group">
+                    <label for="timePointInput">时间点/时间段:</label>
+                    <input type="text" id="timePointInput" required>
+                </div>
+                <div class="form-group">
+                    <label for="eventInput">历史事件描述:</label>
+                    <textarea id="eventInput" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="difficultyInput">难度:</label>
+                    <select id="difficultyInput" required>
+                        <option value="1">1 - 简单</option>
+                        <option value="2">2</option>
+                        <option value="3">3 - 中等</option>
+                        <option value="4">4</option>
+                        <option value="5">5 - 困难</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">保存事件</button>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // Supabase 配置 - 请替换为您的项目信息
+        const supabaseUrl = 'https://uqxhnjdckqyathfuvnsb.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxeGhuamRja3F5YXRoZnV2bnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNjM1MTksImV4cCI6MjA2NzYzOTUxOX0.eIKLbQJK7UgwWR3dP_kzqMdaWR_ys7PtGIy83_0c628';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        // 游戏状态
+        let gameState = {
+            score: 0,
+            matches: 0,
+            selectedParts: [],
+            selectedJades: [], // 保留旧属性用于兼容性
+            matchColorIndex: 1, // 从1开始: 1=红色, 2=蓝色
+            timePoints: [],
+            events: [],
+            shuffledEvents: [],
+            isPlaying: false
+        };
+
+        // DOM 元素
+        const timePointColumn = document.getElementById('timePointColumn');
+        const eventColumn = document.getElementById('eventColumn');
+        const scoreElement = document.getElementById('score');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const addEventBtn = document.getElementById('addEventBtn');
+        const difficultySelect = document.getElementById('difficultySelect');
+        const addEventModal = document.getElementById('addEventModal');
+        const addEventForm = document.getElementById('addEventForm');
+        const closeModal = document.querySelector('.close-modal');
+
+        // 初始化事件监听
+        startGameBtn.addEventListener('click', startGame);
+        addEventBtn.addEventListener('click', () => addEventModal.style.display = 'flex');
+        closeModal.addEventListener('click', () => addEventModal.style.display = 'none');
+        addEventForm.addEventListener('submit', handleAddEvent);
+
+        // 点击外部区域关闭模态框
+        window.addEventListener('click', (e) => {
+            if (e.target === addEventModal) addEventModal.style.display = 'none';
+        });
+
+        // 开始游戏
+        async function startGame() {
+            gameState.score = 0;
+            gameState.matches = 0;
+            gameState.selectedJades = [];
+            scoreElement.textContent = '0';
+            timePointColumn.innerHTML = '';
+            eventColumn.innerHTML = '';
+
+            const difficulty = parseInt(difficultySelect.value);
+            const { data, error } = await supabaseClient
+                .from('history_events')
+                .select('time_point, event_description')
+                .eq('difficulty', difficulty)
+                .limit(24);
+
+            if (error) {
+                console.error('加载数据失败:', error);
+                alert('加载历史事件失败，请重试');
+                return;
+            }
+
+            if (data.length < 12) {
+                alert('该难度下事件数量不足，请先添加更多事件');
+                return;
+            }
+
+            // 存储原始数据
+            gameState.timePoints = [...data.map(item => item.time_point)];
+            gameState.events = [...data.map(item => item.event_description)];
+            // 创建正确的时间-事件配对
+            gameState.correctPairs = gameState.timePoints.map((timePoint, index) => ({
+                timePoint, event: gameState.events[index]
+            }));
+            // 同时打乱时间点和事件
+            gameState.shuffledTimePoints = [...gameState.timePoints];
+            do {
+                gameState.shuffledTimePoints = shuffleArray(gameState.shuffledTimePoints);
+            } while (hasInitialMatches());
+
+            gameState.shuffledEvents = [...gameState.events];
+            do {
+                gameState.shuffledEvents = shuffleArray(gameState.shuffledEvents);
+            } while (hasInitialMatches());
+
+            // 创建玉璧元素
+            createJadeElements();
+            gameState.isPlaying = true;
+        }
+
+        // 创建玉璧元素
+        function createJadeElements() {
+            const jadeContainer = document.querySelector('.jade-container');
+            jadeContainer.innerHTML = '';
+            
+            // 创建24个完整玉璧
+            for (let i = 0; i < gameState.timePoints.length; i++) {
+                const jade = createJadeElement(
+                    gameState.timePoints[i], 
+                    gameState.shuffledEvents[i], 
+                    i
+                );
+                jadeContainer.appendChild(jade);
+            }
+        }
+
+        // 创建单个玉璧元素
+        function createJadeElement(timePoint, event, index) {
+            const jade = document.createElement('div');
+            jade.className = 'jade-stone';
+            jade.dataset.index = index;
+            jade.innerHTML = `
+                <div class="jade-half jade-left" data-type="time">${gameState.shuffledTimePoints[index]}</div>
+                <div class="jade-half jade-right" data-type="event">${gameState.shuffledEvents[index]}</div>
+            `;
+            // 为左右半圆分别添加点击事件
+            jade.querySelector('.jade-left').addEventListener('click', (e) => selectJadePart(e.target, 'time', index));
+            jade.querySelector('.jade-right').addEventListener('click', (e) => selectJadePart(e.target, 'event', index));
+            return jade;
+        }
+
+        // 选择半圆部分进行交换
+        function selectJadePart(part, type, index) {
+            if (!gameState.isPlaying) return;
+            const jade = part.closest('.jade-stone');
+            // 已匹配的玉璧不能再选择
+            if (jade.dataset.matched === 'true') return;
+
+            // 切换选择状态
+            const selectedIndex = gameState.selectedParts.findIndex(p => p.jade === jade && p.type === type);
+            if (selectedIndex > -1) {
+                jade.classList.remove('selected-' + type);
+                gameState.selectedParts.splice(selectedIndex, 1);
+                return;
+            }
+
+            // 最多选择两个相同类型的半圆
+            if (gameState.selectedParts.length >= 2 || 
+                (gameState.selectedParts.length === 1 && gameState.selectedParts[0].type !== type)) {
+                gameState.selectedParts.forEach(p => {
+                    p.jade.classList.remove('selected-' + p.type);
+                });
+                gameState.selectedParts = [];
+            }
+
+            jade.classList.add('selected-' + type);
+            gameState.selectedParts.push({ jade, type, index });
+
+            // 选择两个相同类型的半圆后进行交换
+            if (gameState.selectedParts.length === 2) {
+                swapJadeParts();
+            }
+        }
+
+        // 交换选中的半圆部分
+        function swapJadeParts() {
+            const [part1, part2] = gameState.selectedParts;
+            const index1 = part1.index;
+            const index2 = part2.index;
+            const type = part1.type;
+
+            // 交换对应类型的数据
+            if (type === 'time') {
+                [gameState.shuffledTimePoints[index1], gameState.shuffledTimePoints[index2]] = 
+                [gameState.shuffledTimePoints[index2], gameState.shuffledTimePoints[index1]];
+
+                // 更新显示
+                const jade1Left = part1.jade.querySelector('.jade-left');
+                const jade2Left = part2.jade.querySelector('.jade-left');
+                [jade1Left.textContent, jade2Left.textContent] = 
+                [jade2Left.textContent, jade1Left.textContent];
+            } else {
+                [gameState.shuffledEvents[index1], gameState.shuffledEvents[index2]] = 
+                [gameState.shuffledEvents[index2], gameState.shuffledEvents[index1]];
+
+                // 更新显示
+                const jade1Right = part1.jade.querySelector('.jade-right');
+                const jade2Right = part2.jade.querySelector('.jade-right');
+                [jade1Right.textContent, jade2Right.textContent] = 
+                [jade2Right.textContent, jade1Right.textContent];
+            }
+
+            // 检查是否匹配
+            checkMatches();
+
+            // 清除选择状态
+            part1.jade.classList.remove('selected-' + type);
+            part2.jade.classList.remove('selected-' + type);
+            gameState.selectedParts = [];
+        }
+
+        // 检查所有玉璧是否匹配并更新颜色
+        function checkMatches() {
+            let newMatchFound = false;
+            let newMatches = 0;
+            const jadeContainer = document.querySelector('.jade-container');
+
+            // 检查所有玉璧是否匹配
+            for (let i = 0; i < gameState.timePoints.length; i++) {
+                const timePoint = gameState.timePoints[i];
+                const event = gameState.shuffledEvents[i];
+                const originalEvent = gameState.events[i];
+                const jade = jadeContainer.children[i];
+
+                // 移除之前的匹配颜色类
+                jade.classList.remove('matched-odd', 'matched-even');
+
+                // 检查是否为正确配对
+            // 获取当前玉璧的时间点和事件文本
+            const currentTimePoint = jade.querySelector('.jade-left').textContent.trim();
+            const currentEvent = jade.querySelector('.jade-right').textContent.trim();
+            
+            // 检查是否为正确配对
+            const isMatch = gameState.correctPairs.some(pair => 
+                pair.timePoint.trim().toLowerCase() === currentTimePoint.toLowerCase() && 
+              pair.event.trim().toLowerCase() === currentEvent.toLowerCase()
+            );
+            
+            if (isMatch && jade.dataset.matched !== 'true') {
+                    // 标记为已匹配
+                // 优先设置匹配状态和样式
+                jade.dataset.matched = 'true';
+                const matchClass = `match-${gameState.matchColorIndex}`;
+                jade.classList.add(matchClass);
+                
+                // 再处理分数和历史记录
+                gameState.score += 100;
+                gameState.matches++;
+                if (scoreElement) scoreElement.textContent = gameState.score;
+                addHistoryEvent(`匹配成功: ${currentTimePoint} - ${currentEvent}`, 'success');
+                newMatchFound = true;
+
+                }
+            }
+
+            if (newMatchFound) {
+                // 所有匹配处理完成后更新颜色索引
+                gameState.matchColorIndex = (gameState.matchColorIndex % 2) + 1;
+                console.log('颜色索引更新为:', gameState.matchColorIndex); // 确保在1和2之间切换
+            }            
+
+            // 更新分数
+    const addedMatches = newMatches - gameState.matches;
+    if (addedMatches > 0) {
+                gameState.score += addedMatches;
+    if (scoreElement) scoreElement.textContent = gameState.score;
+    gameState.matches = newMatches;
+
+                // 检查游戏是否完成
+                if (gameState.matches === gameState.timePoints.length) {
+                    setTimeout(() => alert('恭喜！你已完成所有匹配！'), 500);
+                    gameState.isPlaying = false;
+                }
+            }
+        }
+
+        // 添加历史事件
+        async function handleAddEvent(e) {
+            e.preventDefault();
+            const timePoint = document.getElementById('timePointInput').value;
+            const eventDescription = document.getElementById('eventInput').value;
+            const difficulty = parseInt(document.getElementById('difficultyInput').value);
+
+            const { error } = await supabaseClient
+                .from('history_events')
+                .insert([{ time_point: timePoint, event_description: eventDescription, difficulty }]);
+
+            if (error) {
+                console.error('添加事件失败:', error);
+                alert('添加事件失败: ' + error.message);
+            } else {
+                alert('事件添加成功！');
+                addEventForm.reset();
+                addEventModal.style.display = 'none';
+            }
+        }
+
+        // 工具函数：打乱数组
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        // 检查是否有初始匹配
+        function hasInitialMatches() {
+            for (let i = 0; i < gameState.shuffledTimePoints.length; i++) {
+                const timePoint = gameState.shuffledTimePoints[i];
+                const event = gameState.shuffledEvents[i];
+                if (gameState.correctPairs.some(pair => pair.timePoint === timePoint && pair.event === event)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>
